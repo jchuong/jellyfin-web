@@ -1803,7 +1803,9 @@ class PlaybackManager {
 
             if (promise) {
                 const result = await promise;
-                return result ? result.Items : items;
+                const promiseItems = result.Items ?? items;
+                const index = result.StartIndex ?? 0;
+                return promiseItems.slice(index);
             } else {
                 return items;
             }
@@ -1860,7 +1862,7 @@ class PlaybackManager {
                 case 'Season':
                     return getSeriesOrSeasonPlaybackPromise(firstItem, options, items);
                 case 'Episode':
-                    return getEpisodePlaybackPromise(firstItem, options, items);
+                    return null;
             }
 
             return getNonItemTypePromise(firstItem, serverId, options, queryOptions);
@@ -1963,48 +1965,6 @@ class PlaybackManager {
 
             episodesResult.TotalRecordCount = episodesResult.Items.length;
 
-            return episodesResult;
-        }
-
-        function getEpisodePlaybackPromise(firstItem, options, items) {
-            if (items.length === 1 && getPlayer(firstItem, options).supportsProgress !== false) {
-                return getEpisodes(firstItem, options);
-            } else {
-                return null;
-            }
-        }
-
-        function getEpisodes(firstItem, options) {
-            return new Promise(function (resolve, reject) {
-                const apiClient = ServerConnections.getApiClient(firstItem.ServerId);
-
-                if (!firstItem.SeriesId) {
-                    resolve(null);
-                    return;
-                }
-
-                apiClient.getEpisodes(firstItem.SeriesId, {
-                    IsVirtualUnaired: false,
-                    IsMissing: false,
-                    UserId: apiClient.getCurrentUserId(),
-                    Fields: ['Chapters', 'Trickplay']
-                }).then(function (episodesResult) {
-                    resolve(filterEpisodes(episodesResult, firstItem, options));
-                }, reject);
-            });
-        }
-
-        function filterEpisodes(episodesResult, firstItem, options) {
-            for (const [index, e] of episodesResult.Items.entries()) {
-                if (e.Id === firstItem.Id) {
-                    episodesResult.StartIndex = index;
-                    break;
-                }
-            }
-
-            // TODO: fix calling code to read episodesResult.StartIndex instead when set.
-            options.startIndex = episodesResult.StartIndex;
-            episodesResult.TotalRecordCount = episodesResult.Items.length;
             return episodesResult;
         }
 
